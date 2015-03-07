@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * EM7 Library version 0.2.1 
+ */
+
 Class Em7 {
 
   var $base = null;
@@ -18,6 +22,8 @@ Class Em7 {
       throw new Exception("You must specify the config information as array('uri' => <EM7 API URL>, 'username' => <EM7 USERNAME>, 'password' => <EM7 PASSWORD>)");
     }
     $this->base = $config;
+    $this->methods = array();
+    $this->clear_old();
     $this->grab_methods();
 
     return true;
@@ -71,6 +77,7 @@ Class Em7 {
   private function clear_old()
   {
     // Clear any old vars
+    $this->uri = null;
     $this->uri_called = '';
     $this->uri_vars = array();
     $this->func_callback = null;
@@ -96,6 +103,12 @@ Class Em7 {
       $ops = "." . implode('.',$ops);
     }
     $this->uri_vars["filter.{$filter}{$ops}"] = $value;
+    return $this;
+  }
+
+  public function duration($duration = '1d')
+  {
+    $this->uri_vars["duration"] = $duration;
     return $this;
   }
 
@@ -193,9 +206,12 @@ Class Em7 {
           if (count($response['content']['result_set']) > 0) {
             $entities = array_merge($entities, $response['content']['result_set']);
           } else {
+            $tmp = $this->uri_called;
             $this->clear_old();
-            throw new Exception("No matched entries");
+            throw new Exception("No matched entries {$tmp}");
           }
+        } elseif (array_key_exists("data", $response['content']) === true) {
+          $entities = array_merge($entities, $response['content']['data']);
         } else {
           $entities = $response['content'];
         }
@@ -264,6 +280,12 @@ Class Em7 {
       } elseif (strpos($line, ":") !== FALSE) {
         $header_array = explode(":", $line);
         $response['headers'][$header_array[0]] = trim($header_array[1]);
+      } else {
+        // Fall through and check basic JSON validate
+        $json_obj = json_decode($line, TRUE);
+        if (is_null($json_obj) === false) {
+          $response['content'] = $json_obj;
+        } 
       }
     }
 

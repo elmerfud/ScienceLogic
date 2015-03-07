@@ -1,0 +1,8 @@
+0.2.1 - 2015-03-07 - 1c2541273b9be587a198d828e18c5e56
+------------------
+* Add duration()
+* Add fall through response handing to find & decode valid JSON 
+* Add md5sum of em7_lib.php to CHANGELOG
+* Add version numbering to em7_lib.php
+
+
