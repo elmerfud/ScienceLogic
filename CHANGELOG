@@ -1,3 +1,8 @@
+0.2.2 - 2015-03-16 - 00067eafc6ffa326159ad6370a020d5f
+* Add extended_fetch()
+* Minor fixes to clear old objects
+* Add overloading to callback function
+ 
 0.2.1 - 2015-03-07 - 1c2541273b9be587a198d828e18c5e56
 ------------------
 * Add duration()

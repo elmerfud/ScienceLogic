@@ -1,7 +1,7 @@
 <?php
 
 /**
- * EM7 Library version 0.2.1 
+ * EM7 Library version 0.2.2 
  */
 
 Class Em7 {
@@ -12,6 +12,7 @@ Class Em7 {
   var $uri_called = '';
   var $uri_vars = array();
   var $func_callback = null;
+  var $func_callback_overload = array();
   var $methods = array();
   var $method_chain = array();
 
@@ -40,8 +41,10 @@ Class Em7 {
       }
       $this->method_chain[] = $name;
     } else {
-          
+      // We have a method chain
+      // TODO actually validate the method
     }
+
     if (is_array($arg) === true) {
       if ((isset($arg[0]) === true)&&(is_numeric($arg[0]) === true)) {
         $this->uri_called = $this->uri_called . "/{$name}/{$arg[0]}";
@@ -68,9 +71,15 @@ Class Em7 {
     //var_dump($this->methods);
   }
 
-  public function callback($name)
+  public function callback()
   {
-    $this->func_callback = $name;
+    $args = func_get_args();
+    if (count($args) == 0) {
+      $this->clear_old();
+      throw new Exception("No callback function provided");
+    }
+    $this->func_callback = array_shift($args);
+    $this->func_callback_overload = array_merge(array(),$args);
     return $this;
   }
 
@@ -81,6 +90,7 @@ Class Em7 {
     $this->uri_called = '';
     $this->uri_vars = array();
     $this->func_callback = null;
+    $this->func_callback_overload = array();
     $this->method_chain = array();
     return true;
   }
@@ -112,6 +122,12 @@ Class Em7 {
     return $this;
   }
 
+  public function extended_fetch()
+  {
+    $this->uri_vars['extended_fetch'] = 1;
+    return $this;
+  }
+
   public function method($method = 'GET')
   {
     $this->uri_method = $method;
@@ -125,12 +141,10 @@ Class Em7 {
     $this->uri = $this->uri_called;
     $response = $this->perform_request($data);
     if ($response['http_code'] == 201) {
-      if (is_callable(array($this,"{$this->callback}_create")) === true) {
-        return $this->{"{$this->callback}_create"}($response['headers']['Location']);
-      } else {
-        return $response['headers']['Location'];
-      }
+      $this->clear_old();
+      return $response['headers']['Location'];
     } elseif (($response['http_code'] == 200)||($response['http_code'] == 202)) {
+      $this->clear_old();
       return true;
     } else {
       $error_message = "Could not create " . substr($this->uri, 1) . ". ";
@@ -150,6 +164,7 @@ Class Em7 {
     $this->uri = $this->uri_called;
     $response = $this->perform_request();
     if ($response['http_code'] == 200 || $response['http_code'] == 302) {
+      $this->clear_old();
       return true;
     } else {
       $error_message = "Could not delete " . substr($this->uri, 1) . ". ";
@@ -168,12 +183,10 @@ Class Em7 {
     $this->uri = $this->uri_called;
     $response = $this->perform_request($array);
     if ($response['http_code'] == 201) {
-      if (is_callable(array($this,"{$this->callback}_create")) === true) {
-        return $this->{"{$this->callback}_create"}($response['headers']['Location']);
-      } else {
-        return $response['headers']['Location'];
-      }
+      $this->clear_old();
+      return $response['headers']['Location'];
     } elseif ($response['http_code'] == 200) {
+      $this->clear_old();
       return true;
     } else {
       $error_message = "Could not create " . substr($this->uri, 1) . ". ";
@@ -310,11 +323,11 @@ Class Em7 {
   {
     $out = null;
     if (method_exists($this,"{$this->func_callback}") === true) {
-      $out = $this->{"{$this->func_callback}"}($entities);
+      $out = call_user_func_array(array($this, $this->func_callback), array_merge(array($entities),$this->func_callback_overload));
     } elseif (method_exists('self',$this->func_callback) === true) {
-      $out = self::$this->func_callback($entities);
+      $out = call_user_func_array(array(__CLASS__,$this->func_callback), array_merge(array($entities),$this->func_callback_overload));
     } elseif (is_callable("{$this->func_callback}") === true) {
-      $out = call_user_func($this->func_callback,$entities);
+      $out = call_user_func_array($this->func_callback, array_merge(array($entities),$this->func_callback_overload));
     } else {
       $out = $entities;
     }
